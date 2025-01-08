@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Depends, WebSocket
 from typing import Optional
-from .ai_chat_service import AIChatService
+from .ai_chat_service_old import AIChatService
 
 router = APIRouter(prefix="/aichat")
 

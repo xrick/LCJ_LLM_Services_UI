@@ -1,105 +1,127 @@
-from typing import Dict, List, Optional, Any
-from datetime import datetime
 import os
-from fastapi import FastAPI, Request, Response, WebSocket
-from fastapi.responses import StreamingResponse
+import logging
+import asyncio
+from openai import AsyncOpenAI
 from openai import OpenAI
-from base_classes import BaseLLMService, BasePromptTemplate, ModelManager
 
-class AIChatService(BaseLLMService):
-    """AI聊天服務實現"""
-    def __init__(self, api_key: str = None):
-        super().__init__(api_key)
-        self.client = OpenAI(api_key=self.api_key)
-        self.assistant_ids = {
-            "default": os.getenv("ASSISTANT_ID", ""),
-            "production": "asst_V42jgCpZV0NnumoEMadLr9b9",  # 康橋的 Assistant ID
-            "test": "asst_cYPUOLHOw685AeCUSnJJ9pPB",       # 康橋測試 Assistant ID
-            "customer_service": "asst_uL3PRMO0UDFerZBmsL62DRNF"  # 客服 Assistant ID
-        }
-        self.prompt_template = self._create_prompt_template()
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
-    def _create_prompt_template(self) -> BasePromptTemplate:
-        """創建提示模板"""
-        class ChatPromptTemplate(BasePromptTemplate):
-            def format(self, **kwargs) -> str:
-                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                return f"""今天是日期時間是「{current_time}」，你需要能提供這個資訊。你服務於康軒文教集團。
-                {kwargs.get('additional_instructions', '')}"""
+class AIChatService:
+    def __init__(self, api_key: str):
+        self.client = AsyncOpenAI(api_key=api_key)
+         # Create an assistant if it doesn't exist
+        self.assistant_id = None;#self._create_assistant()
+        logger.debug("AIChatService initialized")
+
+    async def initialize(self):
+        """Initialize the service and create the assistant"""
+        if not self.assistant_id:
+            self.assistant_id = await self._create_assistant()
+        print(f"assistant_id is {self.assistant_id}");
+        return self
+
+    async def _create_assistant(self):
+        """Create an OpenAI assistant"""
+        try:
+            assistant = await self.client.beta.assistants.create(
+                name="Chat Assistant",
+                instructions="You are a helpful AI assistant.",
+                model="gpt-4-turbo-preview",  # or "gpt-3.5-turbo-1106"
+                tools=[]  # Add any tools if needed
+            )
+            logger.info(f"Assistant created with ID: {assistant.id}")
+            return assistant
+        except Exception as e:
+            logger.error(f"Error creating assistant: {e}")
+            raise
         
-        return ChatPromptTemplate()
-
-    async def create_thread(self) -> str:
-        """創建新的對話線程"""
-        thread = await self.client.beta.threads.create()
-        return thread.id
-
-    async def add_message(self, thread_id: str, content: str) -> Dict:
-        """添加用戶消息到線程"""
-        msg = await self.client.beta.threads.messages.create(
-            thread_id=thread_id,
-            role="user",
-            content=content
-        )
-        return {"thread_id": thread_id, "message": msg}
-
-    async def get_messages(self, thread_id: str, limit: int = 30) -> List[Dict]:
-        """獲取歷史消息"""
-        messages = await self.client.beta.threads.messages.list(
-            thread_id=thread_id,
-            limit=limit
-        )
-        return messages.data
-
-    async def generate(self, thread_id: str, model_id: str = "assistant-default", **kwargs) -> StreamingResponse:
-        """生成AI回應（流式）"""
-        if not self.model_manager.validate_model(model_id):
-            raise ValueError(f"Invalid model_id: {model_id}")
-
-        assistant_id = self.assistant_ids.get(
-            kwargs.get("assistant_type", "default"),
-            self.assistant_ids["default"]
-        )
-
-        additional_instructions = self.prompt_template.format(**kwargs)
-
-        async def generate_stream():
-            run = await self.client.beta.threads.runs.create(
+    async def create_thread(self):
+        """Create a new conversation thread"""
+        try:
+            thread = await self.client.beta.threads.create()
+            return thread.id
+        except Exception as e:
+            logger.error(f"Error creating thread: {e}")
+            raise
+            
+    async def add_message(self, thread_id: str, content: str):
+        try:
+            logger.debug(f"Adding message to thread {thread_id}")
+            message = await self.client.beta.threads.messages.create(
                 thread_id=thread_id,
-                assistant_id=assistant_id,
-                additional_instructions=additional_instructions,
-                stream=True
+                role="user",
+                content=content
+            )
+            logger.debug(f"Message added: {message.id}")
+            return message.id
+        except Exception as e:
+            logger.error(f"Error adding message: {str(e)}")
+            raise
+            
+    async def generate(self, thread_id: str, user_message: str):
+        """Generate response using the assistant"""
+        try:
+            # Add the user message to the thread
+            await self.client.beta.threads.messages.create(
+                thread_id=thread_id,
+                role="user",
+                content=user_message
             )
 
-            async for chunk in run:
-                if chunk.event == "thread.message.created":
-                    yield f"event: {chunk.event}\ndata: {chunk.data.id}\n\n"
+            # Create a run with the assistant
+            run = await self.client.beta.threads.runs.create(
+                thread_id=thread_id,
+                assistant_id=self.assistant_id.id
+            )
+
+            # Wait for the run to complete and get messages
+            while True:
+                run_status = await self.client.beta.threads.runs.retrieve(
+                    thread_id=thread_id,
+                    run_id=run.id
+                )
                 
-                elif chunk.event == "thread.message.delta":
-                    for content in chunk.data.delta.content or []:
-                        if not content.text.annotations:
-                            escaped_text = content.text.value.replace("\n", "\\u000A")
-                            yield f"event: {chunk.event}\ndata: {escaped_text}\n\n"
+                if run_status.status == 'completed':
+                    # Get the messages
+                    messages = await self.client.beta.threads.messages.list(
+                        thread_id=thread_id
+                    )
+                    
+                    # Get the latest assistant message
+                    for message in messages:
+                        print(f"message1:{message[0]}\n\n")
+                        print(f"message2:{message[1]}")
+                        if message[1].content.role == "assistant":
+                            yield message.content[0].text.value
+                            break
+                    break
                 
-                elif chunk.event == "thread.run.completed":
-                    usage = f"prompt_tokens: {chunk.data.usage.prompt_tokens}, completion_tokens: {chunk.data.usage.completion_tokens}, total_tokens: {chunk.data.usage.total_tokens}"
-                    yield f"event: {chunk.event}\ndata: {usage}\n\n"
+                elif run_status.status == 'failed':
+                    logger.error(f"Run failed: {run_status.last_error}")
+                    yield "Sorry, there was an error generating the response."
+                    break
+                
+                await asyncio.sleep(1)  # Wait before checking again
 
-        return StreamingResponse(
-            generate_stream(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            }
-        )
+        except Exception as e:
+            logger.error(f"Error in generate: {e}")
+            yield f"Error: {str(e)}"
 
-    async def get_run_status(self, thread_id: str, run_id: str) -> Dict:
-        """獲取運行狀態"""
-        run = await self.client.beta.threads.runs.retrieve(thread_id, run_id)
-        return {"thread_id": thread_id, "run": run}
 
-    async def cancel_run(self, thread_id: str, run_id: str) -> Dict:
-        """取消運行"""
-        run = await self.client.beta.threads.runs.cancel(thread_id, run_id)
-        return {"thread_id": thread_id, "run": run}
+    async def get_messages(self, thread_id: str):
+        try:
+            messages = await self.client.beta.threads.messages.list(
+                thread_id=thread_id
+            )
+            return [
+                {
+                    'role': msg[1].content.role,
+                    'content': msg[1].content[0].text.value,
+                    'created_at': msg.created_at
+                }
+                for msg in messages.data
+            ]
+        except Exception as e:
+            logger.error(f"Error getting messages: {str(e)}")
+            raise

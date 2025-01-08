@@ -1,0 +1,31 @@
+I give you previous our project summary:
+
+project ui description:
+1. The main screen contains two parts: left side-bar and right content space
+2. There are three items on the side-bar:<home>,<models>,<chat-history>
+3. From the 2, the three items stand for three main part of our web-ui
+4. When user visit out llm service web-ui, the default content is the 
+   <home> part.
+5. The <home> part contains a block-based services selection ui shown
+   on the right content space.
+6. Currently, we have four blocks:[AI聊天],[寫作建議],[規範FAQ],[eBooks]
+
+
+project/
+├── app/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── ai_chat_router.py
+│   ├── ai_chat_service.py
+│   └── base_classes.py
+│   
+├── static/
+│   ├── css/
+│   └── js/
+│
+│
+├── templates/
+│   ├── index.html
+│   └── ai-chat.html
+│
+└── requirements.txt

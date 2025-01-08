@@ -1,6 +1,11 @@
-from fastapi import FastAPI, Request
+import os
+import json
+import asyncio
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
+from .ai_chat_service import AIChatService
 from pathlib import Path
 
 app = FastAPI()
@@ -8,37 +13,65 @@ app = FastAPI()
 # 設置模板目錄
 templates = Jinja2Templates(directory="templates")
 
-# 設置靜態文件目錄（如果需要）
+# 設置靜態文件目錄
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Initialize AI-Chatservice
+_api_key = os.getenv("OPENAI_API_KEY")
+if not _api_key:
+    raise ValueError("OPENAI_API_KEY environment variable is not set")
+print(f"api_key is {_api_key}")
+ai_chat_service = None;
+
+@app.on_event("startup")
+async def startup_event():
+    global ai_chat_service
+    ai_chat_service = await AIChatService(_api_key).initialize()
+
 
 @app.get("/")
 async def home(request: Request):
-    # 正確的方式是將 request 作為參數傳遞給 template
-    return templates.TemplateResponse("index0108_2.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/chat")
 async def chat(request: Request):
     return templates.TemplateResponse("ai-chat.html", {"request": request})
 
-# 其他路由
-@app.get("/writing")
-async def writing(request: Request):
-    return templates.TemplateResponse("writing.html", {"request": request})
+@app.post("/api/chat/thread")
+async def create_thread():
+    try:
+        thread_id = await ai_chat_service.create_thread()
+        return {"thread_id": thread_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/regulations")
-async def regulations(request: Request):
-    return templates.TemplateResponse("regulations.html", {"request": request})
+@app.get("/api/chat/message")
+async def chat_message(
+    thread_id: str,
+    message: str,
+    request: Request
+):
+    async def event_generator():
+        try:
+            async for response in ai_chat_service.generate(thread_id, message):
+                yield f"data: {json.dumps({'content': response})}\n\n"
+            yield "event: thread.run.completed\ndata: {}\n\n"
+        except Exception as e:
+            # logger.error(f"Error in chat_message: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
-@app.get("/ebook")
-async def ebook(request: Request):
-    return templates.TemplateResponse("ebook.html", {"request": request})
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
+    )
 
-# API 路由
-@app.post("/api/chat")
-async def api_chat(request: Request):
-    data = await request.json()
-    # 處理聊天邏輯
-    return {"response": "這是 AI 的回應"}
+@app.get("/api/chat/history/{thread_id}")
+async def get_chat_history(thread_id: str):
+    try:
+        messages = await ai_chat_service.get_messages(thread_id)
+        return {"messages": messages}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
