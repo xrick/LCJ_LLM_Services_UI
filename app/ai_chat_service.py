@@ -1,61 +1,81 @@
-from fastapi import FastAPI
-from sse_starlette.sse import EventSourceResponse
-from fastapi.responses import JSONResponse
-from openai import AsyncOpenAI
-import json
-import logging
-import uuid
-from typing import Dict, List
+import openai
+from typing import List, Dict, AsyncGenerator
 
-logger = logging.getLogger(__name__)
 
 class AIChatService:
     def __init__(self, api_key: str):
-        self.client = AsyncOpenAI(api_key=api_key)
-        self.conversations: Dict[str, List[dict]] = {}
+        # 初始化 OpenAI API 密鑰
+        openai.api_key = api_key
 
+    #ref: https://stackoverflow.com/questions/77505030/openai-api-error-you-tried-to-access-openai-chatcompletion-but-this-is-no-lon
+    async def generate(self, message: str, history: List[Dict[str, str]] = None, model: str = "gpt-4") -> str:
+        """
+        使用 OpenAI ChatCompletion API 生成 AI 回應（非流式）
 
-    async def create_thread(self):
-        thread_id = str(uuid.uuid4())
-        self.conversations[thread_id] = []
-        return {"thread_id": thread_id}
-
-    async def chat_message(self, thread_id: str, message: str):
+        :param message: 用戶當前輸入的消息
+        :param history: 聊天歷史（默認為空）
+        :param model: 使用的模型（默認為 "gpt-4"）
+        :return: AI 的回應
+        """
         try:
-            if thread_id not in self.conversations:
-                self.conversations[thread_id] = []
+            # 構建消息列表
+            messages = [{"role": "system", "content": "You are a helpful assistant."}]
+            if history:
+                messages.extend(history)
+            messages.append({"role": "user", "content": message})
 
-            self.conversations[thread_id].append({"role": "user", "content": message})
-
-            completion = await self.client.chat.completions.create(
+            # 調用 ChatCompletion API
+            #{"detail":"Error generating AI response: Missing required arguments; Expected either ('messages' and 'model') or ('messages', 'model' and 'stream') arguments to be given"}(
+            response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=self.conversations[thread_id],
-                stream=True
+                messages=[{"role": "user", "content": messages}],
+                # content= messages,
+                # role= "user",
+                # temperature=0.7,
+                # max_tokens=500,
             )
+            # response = await openai.ChatCompletion.acreate(
+            #     #model=model,
+            #     model="gpt-3.5-turbo-1106",
+            #     messages=messages,
+            #     temperature=0.7,  # 可調整生成文本的隨機性
+            #     max_tokens=500,  # 限制生成的最大 token 數
+            # )
 
-            async def event_generator():
-                assistant_message = ""
-                async for chunk in completion:
-                    if chunk.choices[0].delta.content is not None:
-                        content = chunk.choices[0].delta.content
-                        assistant_message += content
-                        yield {
-                            "event": "message",
-                            "data": json.dumps({
-                                "content": content
-                            })
-                        }
-                
-                self.conversations[thread_id].append({
-                    "role": "assistant",
-                    "content": assistant_message
-                })
-
-            return EventSourceResponse(event_generator())
-
+            # 提取回應文本
+            # return response["choices"][0]["message"]["content"].strip()
+            #{"detail":"Error generating AI response: Error code: 400 - {'error': {'message': \"Missing required parameter: 'messages[0].content[0].type'.\", 'type': 'invalid_request_error', 'param': 'messages[0].content[0].type', 'code': 'missing_required_parameter'}}"}(
+            return response.choices[0].message.content.strip()
         except Exception as e:
-            logger.error(f"Error in chat_message: {str(e)}", exc_info=True)
-            return JSONResponse(
-                status_code=500,
-                content={"error": str(e)}
+            raise RuntimeError(f"Error generating AI response: {e}")
+
+    async def generate_stream(self, message: str, history: List[Dict[str, str]] = None, model: str = "gpt-4") -> AsyncGenerator[str, None]:
+        """
+        使用 OpenAI ChatCompletion API 生成流式 AI 回應
+
+        :param message: 用戶當前輸入的消息
+        :param history: 聊天歷史（默認為空）
+        :param model: 使用的模型（默認為 "gpt-4"）
+        :return: 逐步生成的回應（生成器）
+        """
+        try:
+            # 構建消息列表
+            messages = [{"role": "system", "content": "You are a helpful assistant."}]
+            if history:
+                messages.extend(history)
+            messages.append({"role": "user", "content": message})
+
+            # 調用流式 ChatCompletion API
+            response = await openai.ChatCompletion.acreate(
+                model=model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=500,
+                stream=True,  # 啟用流式回應
             )
+
+            # 流式回應生成器
+            async for chunk in response:
+                yield chunk["choices"][0]["delta"]["content"]
+        except Exception as e:
+            raise RuntimeError(f"Error generating AI response: {e}")

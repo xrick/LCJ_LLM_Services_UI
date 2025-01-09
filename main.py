@@ -1,14 +1,12 @@
 import os
-import json
-import asyncio
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import StreamingResponse, HTMLResponse
+from fastapi.responses import HTMLResponse
 from app.ai_chat_service import AIChatService
-from pathlib import Path
 from dotenv import load_dotenv
 
+# 初始化 FastAPI 應用
 app = FastAPI()
 
 # 設置模板目錄
@@ -17,96 +15,84 @@ templates = Jinja2Templates(directory="templates")
 # 設置靜態文件目錄
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Initialize AI-Chatservice
+# 加載環境變數
 load_dotenv()
 _api_key = os.getenv("OPENAI_API_KEY")
 if not _api_key:
     raise ValueError("OPENAI_API_KEY environment variable is not set")
-print(f"api_key is {_api_key}")
+
+# 初始化 AIChatService
 ai_chat_service = None
 
 @app.on_event("startup")
 async def startup_event():
     global ai_chat_service
     try:
-        # 如果 AIChatService 是同步初始化，直接實例化
         ai_chat_service = AIChatService(_api_key)
     except Exception as e:
         raise RuntimeError(f"Failed to initialize AIChatService: {e}")
 
-
+# 根路由：渲染首頁
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+# AI 聊天模板
 @app.get("/ai-chat", response_class=HTMLResponse)
 async def get_chat_template(request: Request):
-    return templates.TemplateResponse("ai-chat.html", {"request": request})
+    return templates.TemplateResponse("ai-chat-content.html", {"request": request})
 
+# 聊天內容模板
 @app.get("/chat-content", response_class=HTMLResponse)
-async def get_chat_content(request: Request):
-    # 返回聊天框模板
-    return templates.TemplateResponse("chat-content.html", {"request": request})
+async def get_chat_content():
+    try:
+        with open("templates/ai-chat-content.html", "r", encoding="utf-8") as file:
+            content = file.read()
+        return HTMLResponse(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load chat content: {str(e)}")
 
+# AI 聊天接口（非流式）
 @app.post("/api/ai-chat")
 async def api_ai_chat(request: Request):
     try:
         # 從請求中提取用戶消息
         data = await request.json()
         message = data.get("message")
-        thread_id = data.get("thread_id")  # 可選的 thread_id，用於多線程支持
-
+        history = data.get("history", [])
         if not message:
             raise HTTPException(status_code=400, detail="Message is required")
 
-        # 如果沒有 thread_id，創建一個新的對話線程
-        if not thread_id:
-            thread_id = await ai_chat_service.create_thread()
-
         # 調用 AIChatService 的生成方法
-        ai_response = await ai_chat_service.generate(thread_id, message)
+        ai_response = await ai_chat_service.generate(message, history)
 
         # 返回 AI 的回應
-        return {
-            "thread_id": thread_id,
-            "response": ai_response
-        }
+        return {"response": ai_response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/chat/thread")
-async def create_thread():
+# AI 聊天接口（流式）
+@app.post("/api/ai-chat-stream")
+async def api_ai_chat_stream(request: Request):
     try:
-        thread_id = await ai_chat_service.create_thread()
-        return {"thread_id": thread_id}
+        # 從請求中提取用戶消息
+        data = await request.json()
+        message = data.get("message")
+        history = data.get("history", [])
+        if not message:
+            raise HTTPException(status_code=400, detail="Message is required")
+
+        # 調用 AIChatService 的流式生成方法
+        async def stream_generator():
+            async for chunk in ai_chat_service.generate_stream(message, history):
+                yield {"content": chunk}
+
+        return stream_generator()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/chat/history/{thread_id}")
-async def get_chat_history(thread_id: str):
-    try:
-        messages = await ai_chat_service.get_messages(thread_id)
-        return {"messages": messages}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
-# Add new endpoints for run status and cancellation
-@app.get("/api/chat/status/{thread_id}")
-async def get_run_status(thread_id: str):
-    try:
-        status = await ai_chat_service.get_run_status(thread_id)
-        return status
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/chat/cancel/{thread_id}")
-async def cancel_run(thread_id: str):
-    try:
-        result = await ai_chat_service.cancel_run(thread_id)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+# 啟動應用
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
