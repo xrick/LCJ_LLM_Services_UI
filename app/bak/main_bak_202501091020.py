@@ -5,18 +5,21 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
-from .ai_chat_service import AIChatService
+from app.ai_chat_service_deprecated_202501091217 import AIChatService
 from pathlib import Path
+from dotenv import load_dotenv
+from fastapi.responses import HTMLResponse
 
 app = FastAPI()
 
 # 設置模板目錄
 templates = Jinja2Templates(directory="templates")
-
 # 設置靜態文件目錄
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Initialize AI-Chatservice
+# load .env file to environment
+load_dotenv()
 _api_key = os.getenv("OPENAI_API_KEY")
 if not _api_key:
     raise ValueError("OPENAI_API_KEY environment variable is not set")
@@ -29,12 +32,18 @@ async def startup_event():
     ai_chat_service = await AIChatService(_api_key).initialize()
 
 
-@app.get("/")
-async def home(request: Request):
+# @app.get("/")
+# async def home(request: Request):
+#     return templates.TemplateResponse("index.html", {"request": request})
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.get("/chat")
-async def chat(request: Request):
+# @app.get("/chat")
+# async def chat(request: Request):
+#     return templates.TemplateResponse("ai-chat.html", {"request": request})
+@app.get("/ai-chat", response_class=HTMLResponse)
+async def get_chat_template(request: Request):
     return templates.TemplateResponse("ai-chat.html", {"request": request})
 
 @app.post("/api/chat/thread")

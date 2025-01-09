@@ -97,23 +97,15 @@
             const handleServiceClick = async (serviceId) => {
                 if (serviceId === 'chat') {
                     try {
-                        const response = await fetch('/chat-content'); // 後端路由
+                        const response = await fetch('/ai-chat');
                         const content = await response.text();
-                        setCurrentContent(content); // 加載聊天內容
-                        setCurrentView('chat'); // 切換到聊天視圖
-                        
-                        // 初始化聊天界面（確保腳本正確執行）
-                        setTimeout(() => {
-                            if (typeof initializeChatInterface === 'function') {
-                                initializeChatInterface();
-                            }
-                        }, 0);
+                        setCurrentContent(content);
+                        setCurrentView('chat');
                     } catch (error) {
                         console.error('Error loading chat content:', error);
                     }
                 }
             };
-
 
             React.useEffect(() => {
                 lucide.createIcons();
@@ -177,12 +169,11 @@
                             </div>
                         </header>
 
-                        {/* Content Area */}
                         <main className="flex-1 p-6">
                             {currentView === 'home' ? (
                                 <HomeContent onServiceClick={handleServiceClick} />
                             ) : (
-                                <div id="content" dangerouslySetInnerHTML={{ __html: currentContent }} />
+                                <div id="dynamic-content" dangerouslySetInnerHTML={{ __html: currentContent }} />
                             )}
                         </main>
                     </div>
@@ -193,9 +184,9 @@
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
-    {% endraw %}
-
-    <!-- Add AI Chat JavaScript -->
+    <!-- Add this before the closing </body> tag -->
     <script src="/static/js/ai-chat.js"></script>
+
+    {% endraw %}
 </body>
 </html>

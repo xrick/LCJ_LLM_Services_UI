@@ -1,7 +1,7 @@
 import asyncio
 import os
 from dotenv import load_dotenv
-from ai_chat_service import AIChatService
+from app.ai_chat_service_deprecated_202501091217 import AIChatService
 
 load_dotenv()
 
