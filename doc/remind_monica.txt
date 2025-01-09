@@ -9,23 +9,25 @@ project ui description:
 5. The <home> part contains a block-based services selection ui shown
    on the right content space.
 6. Currently, we have four blocks:[AI聊天],[寫作建議],[規範FAQ],[eBooks]
+7. We have implemented most the files
 
-
+the current project structure is as following:
 project/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── ai_chat_router.py
 │   ├── ai_chat_service.py
 │   └── base_classes.py
 │   
 ├── static/
 │   ├── css/
 │   └── js/
+│        └── ai-chat.js
 │
 │
 ├── templates/
 │   ├── index.html
 │   └── ai-chat.html
+│   └── ai-chat=content.html
 │
+└── main.py
+└── .env
 └── requirements.txt
