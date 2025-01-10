@@ -28,11 +28,11 @@ class AIChatService:
             #{"detail":"Error generating AI response: Missing required arguments; Expected either ('messages' and 'model') or ('messages', 'model' and 'stream') arguments to be given"}(
             response = openai.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": messages}],
+                messages=messages,
                 # content= messages,
                 # role= "user",
-                # temperature=0.7,
-                # max_tokens=500,
+                temperature=0.7,
+                max_tokens=500,
             )
             # response = await openai.ChatCompletion.acreate(
             #     #model=model,

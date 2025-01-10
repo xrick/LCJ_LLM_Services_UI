@@ -11,6 +11,7 @@ project ui description:
 6. Currently, we have four blocks:[AI聊天],[寫作建議],[規範FAQ],[eBooks]
 7. We have implemented most the files
 
+* run: python -m uvicorn app.main:app --reload
 the current project structure is as following:
 project/
 ├── app/
@@ -31,3 +32,8 @@ project/
 └── main.py
 └── .env
 └── requirements.txt
+
+2025/01/09
+- Yesterday, I finish the generate function in ai_chat_service.py
+- We finish the function test using curl and succeed
+- now we test if the message can be summitted in ai-chat-content.html

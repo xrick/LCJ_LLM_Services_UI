@@ -1,21 +1,16 @@
-<div className="flex flex-col h-full">
-    <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-800">
-        <div id="messages" className="space-y-4">
-            <!-- 聊天消息將動態插入到這裡 -->
-        </div>
-    </div>
-    <div className="p-4 bg-white dark:bg-gray-900 shadow-md flex items-center gap-2">
-        <input 
-            id="user-message" 
-            type="text" 
-            placeholder="輸入你的消息..." 
-            className="flex-1 p-2 border rounded-lg dark:bg-gray-800 dark:text-white"
-        />
-        <button 
-            id="send-message" 
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-        >
-            發送
-        </button>
-    </div>
-</div>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 聊天室</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <!-- 嵌入部分模板 -->
+    {% include "ai-chat-content.html" %}
+
+    <!-- 引入 JavaScript -->
+    <script src="/static/js/ai-chat.js"></script>
+</body>
+</html>
