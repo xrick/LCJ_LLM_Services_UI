@@ -24,7 +24,7 @@
     {% raw %}
     <script type="text/babel">
         const HomeContent = ({ onServiceClick }) => {
-            const services_row1 = [
+            const services = [
                 {
                     icon: "message-circle",
                     title: "AI聊天",
@@ -38,7 +38,7 @@
                     id: "writing"
                 },
                 {
-                    icon: "scale",
+                    icon: "book-open",
                     title: "規定助手",
                     description: "快速查詢與理解各項規定",
                     id: "regulations"
@@ -50,67 +50,34 @@
                     id: "ebook"
                 }
             ];
-            const services_row2 = [
-                {
-                    icon: "notebook-pen",
-                    title: "作文OCR服務",
-                    description: "轉換作文圖片至文字",
-                    id: "composition_ocr"
-                },
-            ];
 
             return (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {services_row1.map((service_row1, index) => (
+                    {services.map((service, index) => (
                         <div 
                             key={index}
-                            onClick={() => onServiceClick(service_row1.id)}
+                            onClick={() => onServiceClick(service.id)}
                             className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 cursor-pointer transform hover:-translate-y-1"
                         >
                             <div className="flex items-center gap-4">
                                 <div className="p-2 bg-blue-50 dark:bg-blue-900 rounded-lg">
                                     <i 
-                                        data-lucide={service_row1.icon}
+                                        data-lucide={service.icon}
                                         className="w-6 h-6 text-blue-500 dark:text-blue-300"
                                     ></i>
                                 </div>
                                 <div>
                                     <h3 className="text-lg font-semibold dark:text-white">
-                                        {service_row1.title}
+                                        {service.title}
                                     </h3>
                                     <p className="text-gray-600 dark:text-gray-300 text-sm mt-1">
-                                        {service_row1.description}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-                    {services_row2.map((service_row2, index) => (
-                        <div 
-                            key={index}
-                            onClick={() => onServiceClick(service_row2.id)}
-                            className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 p-6 cursor-pointer transform hover:-translate-y-1"
-                        >
-                            <div className="flex items-center gap-4">
-                                <div className="p-2 bg-blue-50 dark:bg-blue-900 rounded-lg">
-                                    <i 
-                                        data-lucide={service_row2.icon}
-                                        className="w-6 h-6 text-blue-500 dark:text-blue-300"
-                                    ></i>
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-semibold dark:text-white">
-                                        {service_row2.title}
-                                    </h3>
-                                    <p className="text-gray-600 dark:text-gray-300 text-sm mt-1">
-                                        {service_row2.description}
+                                        {service.description}
                                     </p>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
-                
             );
         };
         
@@ -118,7 +85,6 @@
             const [isDark, setIsDark] = React.useState(
                 window.matchMedia('(prefers-color-scheme: dark)').matches
             );
-
             const [currentView, setCurrentView] = React.useState('home');
             const [currentContent, setCurrentContent] = React.useState(null);
 
@@ -170,33 +136,9 @@
                         <h2 class="text-lg font-bold text-gray-700 dark:text-gray-200">電子書</h2>
                         <p class="text-gray-600 dark:text-gray-300 mt-2">此功能尚未實現。</p>
                     `);
-                } else if (serviceId === 'composition_ocr'){
-                    try{
-                        const response = await fetch('/ocr-page'); // 假設這個路由返回聊天的 HTML
-                        const content = await response.text();
-                        setCurrentView('composition_ocr');
-                        setCurrentContent(content);
-                        // 動態加載 ocr_page.js
-                        const script = document.createElement('script');
-                            script.src = '/static/js/ocr_page.js'; // 假設 ocr_page.js 的路徑
-                            script.onload = () => {
-                                console.log("ocr_page.js 加載完成");
-                                if (typeof window.initializeOCRInterface === 'function') {
-                                    console.log("調用 initializeOCRInterface...");
-                                    window.initializeOCRInterface(); // 調用全局函數
-                                } else {
-                                    console.error("initializeChatInterface 未定義！");
-                                }
-                            };
-                            script.onerror = () => {
-                                console.error("ocr_page.js 加載失敗！");
-                            };
-                            document.body.appendChild(script);
-                    } catch (error) {
-                        console.error('Error loading OCR Page:', error);
-                    }
                 }
             }
+
 
             React.useEffect(() => {
                 lucide.createIcons();
@@ -208,7 +150,7 @@
                     }
                 }
             }, []);
-            
+
             return (
                 <div className="min-h-screen flex">
                     {/* Sidebar */}
@@ -270,9 +212,6 @@
                                 <div dangerouslySetInnerHTML={{ __html: currentContent }} />
                             )}
                             {currentView === 'ebook' && (
-                                <div dangerouslySetInnerHTML={{ __html: currentContent }} />
-                            )}
-                            {currentView === 'composition_ocr' && (
                                 <div dangerouslySetInnerHTML={{ __html: currentContent }} />
                             )}
                         </main>
