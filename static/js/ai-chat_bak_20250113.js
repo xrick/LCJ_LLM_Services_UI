@@ -1,21 +1,52 @@
-// ai-chat.js
-(function () {
-    console.log("ai-chat.js 加載完成！");
+document.addEventListener("DOMContentLoaded", function () {
+    const rootEle = document.getElementById('root')
+    const chatSection = document.getElementById('chat-section');
+    const chatContainer = document.getElementById("chat-container");
+    const messageInput = document.getElementById("message-input");
+    const sendButton = document.getElementById("send-button");
+    // 確認必要的 DOM 元素是否存在
+    // if (!chatContainer || !messageInput || !sendButton) {
+    //     console.error("必要的 DOM 元素未找到：#chat-container, #message-input 或 #send-button");
+    //     return;
+    // }
+    if(!rootEle){
+        console.error("rootEle is not found");
+    }
+    
+    // const subElements = rootEle.children;
+    // // Loop through each sub-element
+    // for (let i = 0; i < subElements.length; i++) {
+    //     console.log(subElements[i]);
+    // }
 
-    // 定義初始化聊天介面的函數
+    if(!chatSection){
+        console.error("chatSection is not found");
+    }
+    if(!chatContainer){
+        console.error("chatContainer is not found");
+    }
+    if(!messageInput){
+        console.error("messageInput is not found");
+    }
+    if(!sendButton){
+        console.error("sendButton is not found");
+    }else{
+        console.log("sendButton is found")
+    }
+    /* 
+    output all the elements
+    */
+   // Get all HTML elements
+    const allElements = document.getElementsByTagName("*");
+
+    // Loop through each element
+    for (let i = 0; i < allElements.length; i++) {
+        console.log(allElements[i]);
+    }
+    // 定義 initializeChatInterface 函數
+    // 初始化聊天介面
     function initializeChatInterface() {
         console.log("初始化聊天介面...");
-
-        // 確保 DOM 元素存在
-        const chatContainer = document.getElementById("chat-container");
-        const messageInput = document.getElementById("message-input");
-        const sendButton = document.getElementById("send-button");
-
-        if (!chatContainer || !messageInput || !sendButton) {
-            console.error("聊天介面的必要 DOM 元素未找到，稍後重試...");
-            return;
-        }
-
         // 綁定發送按鈕點擊事件
         sendButton.addEventListener("click", function () {
             const message = messageInput.value.trim();
@@ -26,21 +57,30 @@
         });
     }
 
-    // 將函數掛載到全局作用域
-    window.initializeChatInterface = initializeChatInterface;
+    // 調用初始化函數
+    initializeChatInterface();
 
-    // 發送消息的輔助函數
-    function sendMessage(message) {
-        const chatContainer = document.getElementById("chat-container");
-        const messageInput = document.getElementById("message-input");
+    // 測試按鈕是否被綁定
+    if (!sendButton) {
+        console.error("找不到發送按鈕！");
+        return;
+    }
 
-        if (!chatContainer || !messageInput) {
-            console.error("聊天框或輸入框未找到！");
+    // sendButton.addEventListener("click", sendMessage);
+
+    function sendMessage() {
+        const userMessage = messageInput.value.trim();
+
+        if (userMessage === "") {
+            console.log("請輸入消息！");
             return;
         }
 
+        // 測試輸入的消息
+        console.log("用戶消息：", userMessage);
+
         // 顯示用戶消息到聊天框
-        appendMessage("user", message);
+        appendMessage("user", userMessage);
 
         // 清空輸入框
         messageInput.value = "";
@@ -52,7 +92,7 @@
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ message }),
+            body: JSON.stringify({ message: userMessage }),
         })
             .then((response) => {
                 if (!response.ok) {
@@ -74,14 +114,7 @@
             });
     }
 
-    // 添加消息到聊天框的輔助函數
     function appendMessage(role, text) {
-        const chatContainer = document.getElementById("chat-container");
-        if (!chatContainer) {
-            console.error("找不到聊天容器！");
-            return;
-        }
-
         const messageDiv = document.createElement("div");
         messageDiv.classList.add("p-3", "max-w-xs", "rounded-lg", "shadow", "text-sm");
 
@@ -118,4 +151,4 @@
         // 滾動到底部
         chatContainer.scrollTop = chatContainer.scrollHeight;
     }
-})();
+});

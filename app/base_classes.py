@@ -36,9 +36,11 @@ class BaseLLMService(ABC):
     async def generate(self, prompt: str, **kwargs):
         pass
 
-class AssistantPromptTemplate(BasePromptTemplate):
-    def format(self, **kwargs) -> str:
-        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return f"""今天是日期時間是「{current_time}」，你需要能提供這個資訊。你服務於康軒文教集團。
-        {kwargs.get('additional_instructions', '')}"""
+class BaseServiceFlow(ABC):
+    pass
+# class AssistantPromptTemplate(BasePromptTemplate):
+#     def format(self, **kwargs) -> str:
+#         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+#         return f"""今天是日期時間是「{current_time}」，你需要能提供這個資訊。你服務於康軒文教集團。
+#         {kwargs.get('additional_instructions', '')}"""
 
