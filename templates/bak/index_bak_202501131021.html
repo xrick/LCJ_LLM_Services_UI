@@ -94,69 +94,45 @@
                 localStorage.setItem('darkMode', !isDark);
             };
 
-            const handleServiceClick = async (serviceId) => {
-                if (serviceId === 'chat') {
-                    try {
-                        const response = await fetch('/chat-content'); // 後端路由
-                        const content = await response.text();
-                        setCurrentContent(content); // 加載聊天內容
-                        // console.log("聊天內容插入完成：", document.getElementById("chat-section"));
-                        // console.log("聊天內容插入完成：", rootEle.childNodes.item("send-button"));
-                        setCurrentView('chat'); // 切換到聊天視圖
-                        const SecondLevelEle = document.getElementById('root').childNodes[0];
+            async function handleServiceClick(serviceId) {
+            if (serviceId === 'chat') {
+                try {
+                    // 加載聊天內容
+                    const response = await fetch('/chat-content'); // 假設這個路由返回聊天的 HTML
+                    const content = await response.text();
+                    document.getElementById('root').innerHTML = content;
 
-                        // const childs = rootEle.getElementsByTagName('div');
-                        console.log(SecondLevelEle.className);
-                        const childnodes = SecondLevelEle.getElementsByTagName('div');
-                        const main_content = childnodes[9];
-                        const inner_content = main_content.getElementsByTagName("main");
-                        // const chat_main_elements = inner_content.getElementsByTagName('div');//inner_content[0];
-                        // const chat_main = chat_main_elements[0];
-                        // const input_section = chat_main["input_area"];
-                        // const input_section = inner_content.getElementsByTagName('div')[2];
-                        console.log(inner_content);
-                        console.log(chat_main_elements);
-                        console.log(chat_main);
-                        
-                        // for(var i = 0; i< inner_content.length;i++)
-                        // {
-                        //     console.log(i+".")
-                        //     // console.log(childnodes[i].getAttribute('id'));
-                        //     console.log(inner_content[i]);
-                        //     // if (childnodes[i].getAttribute('id') == 'send-button') // any attribute could be used here
-                        //     // {
-                        //     //     console.log("send-button found")
-                        //     // }
-                        // }
-                        //load ai-chat.js dynamically
-                        // 動態加載 ai-chat.js
-                        const script = document.createElement('script');
-                        script.src = '/static/js/ai-chat.js';
-                        script.onload = () => {
-                            console.log("ai-chat.js 加載完成");
-                            if (typeof initializeChatInterface === 'function') {
-                                initializeChatInterface();
-                            }
-                        };
-                        script.onerror = () => {
-                            console.error("ai-chat.js 加載失敗！");
-                        };
-                        document.body.appendChild(script);
-
-                        // 初始化聊天界面（確保腳本正確執行）
-                        setTimeout(() => {
-                            if (typeof initializeChatInterface === 'function') {
-                                console.log("調用 initializeChatInterface...");
-                                initializeChatInterface();
-                            } else {
-                                console.error("initializeChatInterface 未定義！");
-                            }
-                        }, 100);
-                    } catch (error) {
-                        console.error('Error loading chat content:', error);
-                    }
+                    // 動態加載 ai-chat.js
+                    const script = document.createElement('script');
+                    script.src = '/static/js/ai-chat.js'; // 假設 ai-chat.js 的路徑
+                    script.onload = () => {
+                        console.log("ai-chat.js 加載完成");
+                        if (typeof window.initializeChatInterface === 'function') {
+                            console.log("調用 initializeChatInterface...");
+                            window.initializeChatInterface(); // 調用全局函數
+                        } else {
+                            console.error("initializeChatInterface 未定義！");
+                        }
+                    };
+                    script.onerror = () => {
+                        console.error("ai-chat.js 加載失敗！");
+                    };
+                    document.body.appendChild(script);
+                } catch (error) {
+                    console.error('Error loading chat content:', error);
                 }
-            };
+            } else if (serviceId === 'writing') {
+                document.getElementById('root').innerHTML = `
+                    <h2 class="text-lg font-bold text-gray-700 dark:text-gray-200">寫作建議</h2>
+                    <p class="text-gray-600 dark:text-gray-300 mt-2">此功能尚未實現。</p>
+                `;
+            } else if (serviceId === 'ebook') {
+                document.getElementById('root').innerHTML = `
+                    <h2 class="text-lg font-bold text-gray-700 dark:text-gray-200">電子書</h2>
+                    <p class="text-gray-600 dark:text-gray-300 mt-2">此功能尚未實現。</p>
+                `;
+            }
+        }
 
             React.useEffect(() => {
                 lucide.createIcons();

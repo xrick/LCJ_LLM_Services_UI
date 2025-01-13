@@ -24,6 +24,16 @@
                 sendMessage(message);
             }
         });
+
+        // 綁定輸入框的 [Enter] 鍵事件
+        messageInput.addEventListener("keydown", function (event) {
+            const message = messageInput.value.trim();
+            if (event.key === "Enter") {
+                event.preventDefault(); // 防止回車換行
+                sendMessage(message);
+            }
+        });
+
     }
 
     // 將函數掛載到全局作用域
