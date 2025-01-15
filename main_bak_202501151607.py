@@ -6,10 +6,6 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.ai_chat_service import AIChatService
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
-import asyncio
-from libs.routers.assistant_routes import router as assistant_router
-from libs.service_manager import AssistantServiceManager    
 from libs.base_classes import AssistantRequest, AssistantResponse
 # from libs.ocr_content import *
 
@@ -36,27 +32,17 @@ templates = Jinja2Templates(directory="templates")
 
 # 設置靜態文件目錄
 app.mount("/static", StaticFiles(directory="static"), name="static")
-# 在 app 初始化後添加
-app.include_router(assistant_router, prefix="/assistant")
 
 # 加載環境變數
 load_dotenv()
 _api_key = os.getenv("OPENAI_API_KEY")
 if not _api_key:
     raise ValueError("OPENAI_API_KEY environment variable is not set")
-
-# 添加配置
-ASSISTANT_CONFIG = {
-    "ESSAY_ADVISOR_ID": os.getenv("ESSAY_ADVISOR_ASSISTANT_ID"),
-    "K9_HELPER_ID": os.getenv("K9_HELPER_ASSISTANT_ID")
-}
 #    配置
 pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'  # 安裝tes
 # 初始化 AIChatService
 ai_chat_service = None
-# initialize AsyncOpenAI
-# client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-client = None;
+
 """
 pure functions
 """
@@ -139,10 +125,6 @@ async def startup_event():
     global ai_chat_service
     try:
         ai_chat_service = AIChatService(_api_key)
-        # 初始化助手服務管理器
-        client = AsyncOpenAI(api_key=_api_key);
-        service_manager = AssistantServiceManager.initialize(client)
-        service_manager.initialize_services(ASSISTANT_CONFIG)
     except Exception as e:
         raise RuntimeError(f"Failed to initialize AIChatService: {e}")
 
@@ -230,82 +212,6 @@ async def upload_file(file: UploadFile = File(...)):
         return JSONResponse(content={"message": "File uploaded successfully", "filename": file.filename}, status_code=200)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
-
-"""
-Assistant API Call
-"""
-async def call_assistant(prompt: str, assistant_id: str) -> tuple[str, str]:
-    try:
-        # 建立 thread
-        thread = await client.beta.threads.create()
-        
-        # 新增訊息
-        await client.beta.threads.messages.create(
-            thread_id=thread.id,
-            role="user",
-            content=prompt
-        )
-        
-        # 執行 assistant
-        run = await client.beta.threads.runs.create(
-            thread_id=thread.id,
-            assistant_id=assistant_id
-        )
-        
-        # 等待完成
-        while True:
-            run = await client.beta.threads.runs.retrieve(
-                thread_id=thread.id,
-                run_id=run.id
-            )
-            if run.status == "completed":
-                break
-            elif run.status in ["failed", "expired"]:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Assistant run {run.status}"
-                )
-            await asyncio.sleep(1)
-        
-        # 獲取回應
-        messages = await client.beta.threads.messages.list(
-            thread_id=thread.id
-        )
-        
-        return messages.data[0].content[0].text.value, thread.id
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/assistant", response_model=AssistantResponse)
-async def ask_assistant(request: AssistantRequest):
-    """
-    端點用於與 OpenAI Assistant 互動
-    """
-    try:
-        response, thread_id = await call_assistant(
-            request.prompt,
-            request.assistant_id
-        )
-        
-        return AssistantResponse(
-            response=response,
-            thread_id=thread_id
-        )
-        
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# 錯誤處理
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail}
-    )
-
 
 # 啟動應用
 if __name__ == "__main__":
