@@ -35,7 +35,7 @@
                     icon: "pen-tool",
                     title: "寫作建議",
                     description: "提供專業的寫作建議和內容優化",
-                    id: "writing"
+                    id: "essay-advisor"
                 },
                 {
                     icon: "scale",
@@ -47,7 +47,7 @@
                     icon: "book",
                     title: "eBook",
                     description: "電子書籍管理與閱讀系統",
-                    id: "ebook"
+                    id: "k9-helper"
                 }
             ];
             const services_row2 = [
@@ -158,18 +158,57 @@
                     } catch (error) {
                         console.error('Error loading chat content:', error);
                     }
-                } else if (serviceId === 'writing') {
-                    setCurrentView('writing');
-                    setCurrentContent(`
-                        <h2 class="text-lg font-bold text-gray-700 dark:text-gray-200">寫作建議</h2>
-                        <p class="text-gray-600 dark:text-gray-300 mt-2">此功能尚未實現。</p>
-                    `);
-                } else if (serviceId === 'ebook') {
-                    setCurrentView('ebook');
-                    setCurrentContent(`
-                        <h2 class="text-lg font-bold text-gray-700 dark:text-gray-200">電子書</h2>
-                        <p class="text-gray-600 dark:text-gray-300 mt-2">此功能尚未實現。</p>
-                    `);
+                } else if (serviceId === 'essay-advisor') {
+                    try{
+                        const response = await fetch('/essay-advisor');
+                        const content = await response.text();
+                        setCurrentView('essay-advisor');
+                        setCurrentContent(content);
+
+                        const script = document.createElement('script');
+                        script.src = '/static/js/essay_advisor.js';
+                        script.onload = () => {
+                            console.log("essay_advisor.js 加載完成");
+                            if (typeof window.initializeEssayAdvisorInterface === 'function') {
+                                console.log("調用 initializeEssayAdvisorInterface...");
+                                window.initializeEssayAdvisorInterface();
+                            } else {
+                                console.error("initializeEssayAdvisorInterface 未定義！");
+                            }
+                        };
+                        script.onerror = () => {
+                            console.error("essay_advisor.js 加載失敗！");
+                        };
+                        document.body.appendChild(script);
+                    } catch (error) {
+                        console.error('Error loading essay advisor content:', error);
+                    }
+                } else if (serviceId === 'k9-helper') {
+                    try {
+                        const response = await fetch('/k9-helper');
+                        const content = await response.text();
+                        
+                        setCurrentView('k9-helper');
+                        setCurrentContent(content);
+
+                        const script = document.createElement('script');
+                        script.src = '/static/js/k9_helper.js';
+                        script.onload = () => {
+                            console.log("k9_helper.js 加載完成");
+                            if (typeof window.initializeK9HelperInterface === 'function') {
+                                console.log("調用 initializeK9HelperInterface...");
+                                window.initializeK9HelperInterface();
+                            } else {
+                                console.error("initializeK9HelperInterface 未定義！");
+                            }
+                        };
+                        script.onerror = () => {
+                            console.error("k9_helper.js 加載失敗！");
+                        };
+                        document.body.appendChild(script);
+                    } catch (error) {
+                        console.error('Error loading k9 helper content:', error);
+                    }
                 } else if (serviceId === 'composition_ocr'){
                     try{
                         const response = await fetch('/ocr-page'); // 假設這個路由返回聊天的 HTML
@@ -266,10 +305,10 @@
                             {currentView === 'chat' && (
                                 <div id="chat-main" dangerouslySetInnerHTML={{ __html: currentContent }} />
                             )}
-                            {currentView === 'writing' && (
+                            {currentView === 'essay-advisor' && (
                                 <div dangerouslySetInnerHTML={{ __html: currentContent }} />
                             )}
-                            {currentView === 'ebook' && (
+                            {currentView === 'k9-helper' && (
                                 <div dangerouslySetInnerHTML={{ __html: currentContent }} />
                             )}
                             {currentView === 'composition_ocr' && (

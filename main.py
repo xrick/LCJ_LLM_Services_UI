@@ -11,7 +11,9 @@ import asyncio
 from libs.routers.assistant_routes import router as assistant_router
 from libs.service_manager import AssistantServiceManager    
 from libs.base_classes import AssistantRequest, AssistantResponse
+import logging
 # from libs.ocr_content import *
+
 
 # OCR Libraries
 import pytesseract
@@ -22,10 +24,10 @@ import pdf2image
 # 初始化 FastAPI 應用
 app = FastAPI()
 
-# 添加 CORS 中间件
+# CORS 設置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允许所有源
+    allow_origins=["*"],  # 在生產環境中應該設置具體的域名
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -53,10 +55,11 @@ ASSISTANT_CONFIG = {
 #    配置
 pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'  # 安裝tes
 # 初始化 AIChatService
-ai_chat_service = None
+# ai_chat_service = None
 # initialize AsyncOpenAI
 # client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-client = None;
+# client = None;
+# service_manager = None;
 """
 pure functions
 """
@@ -137,12 +140,16 @@ async def perform_ocr(file: UploadFile = File(...)):
 @app.on_event("startup")
 async def startup_event():
     global ai_chat_service
+    global service_manager
+    global async_client
     try:
+        logging.info("start to initialize services.......");
         ai_chat_service = AIChatService(_api_key)
         # 初始化助手服務管理器
-        client = AsyncOpenAI(api_key=_api_key);
-        service_manager = AssistantServiceManager.initialize(client)
+        async_client = AsyncOpenAI(api_key=_api_key);
+        service_manager = AssistantServiceManager.initialize(async_client)
         service_manager.initialize_services(ASSISTANT_CONFIG)
+        logging.info("chat, essay-advisor, k9-helper services are initialized!");
     except Exception as e:
         raise RuntimeError(f"Failed to initialize AIChatService: {e}")
 
@@ -152,9 +159,32 @@ async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 # AI 聊天模板
-@app.get("/ai-chat", response_class=HTMLResponse)
-async def get_chat_template(request: Request):
-    return templates.TemplateResponse("ai-chat-content.html", {"request": request})
+# @app.get("/ai-chat", response_class=HTMLResponse)
+# async def get_chat_template(request: Request):
+#     return templates.TemplateResponse("ai-chat-content.html", {"request": request})
+
+# Essay Advisor 模板
+@app.get("/essay-advisor", response_class=HTMLResponse)
+async def get_essay_advisor_template():
+    # return templates.TemplateResponse("templates/essay_advisor/content.html", {"request": request})
+    try:
+        with open("templates/essay_advisor/content.html", "r", encoding="utf-8") as file:
+            content = file.read()
+        return HTMLResponse(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load chat content: {str(e)}")
+
+# K9 Helper 模板
+@app.get("/k9-helper", response_class=HTMLResponse)
+async def get_k9_helper_template():
+    # return templates.TemplateResponse("templates/k9_helper/content.html", {"request": request})
+    try:
+        with open("templates/k9_helper/content.html", "r", encoding="utf-8") as file:
+            content = file.read()
+        return HTMLResponse(content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load chat content: {str(e)}")
+
 
 # 聊天內容模板
 @app.get("/chat-content", response_class=HTMLResponse)
@@ -204,7 +234,6 @@ async def api_ai_chat_stream(request: Request):
         history = data.get("history", [])
         if not message:
             raise HTTPException(status_code=400, detail="Message is required")
-
         # 調用 AIChatService 的流式生成方法
         async def stream_generator():
             async for chunk in ai_chat_service.generate_stream(message, history):
@@ -213,6 +242,46 @@ async def api_ai_chat_stream(request: Request):
         return stream_generator()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+# Essay Advisor API
+@app.post("/api/essay-advisor")
+async def essay_advisor_endpoint(request: Request):
+    try:
+        data = await request.json()
+        message = data.get("message", "")
+        if not message:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Message cannot be empty"}
+            )
+        response = await service_manager.handle_essay_advisor(message)
+        return {"response": response}
+    except Exception as e:
+        logging.error(f"Essay Advisor error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error"}
+        )
+
+# K9 Helper API
+@app.post("/api/k9-helper")
+async def k9_helper_endpoint(request: Request):
+    try:
+        data = await request.json()
+        message = data.get("message", "")
+        if not message:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Message cannot be empty"}
+            )
+        response = await service_manager.handle_k9_helper(message)
+        return {"response": response}
+    except Exception as e:
+        logging.error(f"K9 Helper error: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error"}
+        )
 
 # 文件上傳 API
 @app.post("/upload_file")

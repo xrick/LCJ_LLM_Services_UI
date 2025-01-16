@@ -11,7 +11,6 @@ class AIChatService:
     async def generate(self, message: str, history: List[Dict[str, str]] = None, model: str = "gpt-4") -> str:
         """
         使用 OpenAI ChatCompletion API 生成 AI 回應（非流式）
-
         :param message: 用戶當前輸入的消息
         :param history: 聊天歷史（默認為空）
         :param model: 使用的模型（默認為 "gpt-4"）
@@ -27,7 +26,7 @@ class AIChatService:
             # 調用 ChatCompletion API
             #{"detail":"Error generating AI response: Missing required arguments; Expected either ('messages' and 'model') or ('messages', 'model' and 'stream') arguments to be given"}(
             response = openai.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4",#"gpt-3.5-turbo",
                 messages=messages,
                 # content= messages,
                 # role= "user",
